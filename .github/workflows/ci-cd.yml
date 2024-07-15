@@ -1,0 +1,24 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Build Docker image
+      run: docker build -t myapp:${{ github.sha }} .
+    
+    - name: Push to Nexus
+      run: |
+        echo ${{ secrets.NEXUS_PASSWORD }} | docker login ${{ secrets.NEXUS_URL }} -u ${{ secrets.NEXUS_USERNAME }} --password-stdin
+        docker tag myapp:${{ github.sha }} ${{ secrets.NEXUS_URL }}/myapp:${{ github.sha }}
+        docker push ${{ secrets.NEXUS_URL }}/myapp:${{ github.sha }}
+    
+    - name: Update Kubernetes deployment
+      run: |
+        kubectl set image deployment/myapp myapp=${{ secrets.NEXUS_URL }}/myapp:${{ github.sha }}
